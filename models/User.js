@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
     password: String,
     role: {
         type: String,
-        enum: ['admin', 'user'],
+        enum: ['seller', 'user'],
         default: 'user'
     }, createAt:{
         type: Date,

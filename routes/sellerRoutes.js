@@ -1,0 +1,30 @@
+const express = require("express");
+const sellerController = require("../controllers/sellerContoller");
+const auth = require("../middlewares/auth");
+
+const sellerRouter = express.Router();
+
+// Add product route (requires login and seller role)
+sellerRouter.post(
+  "/addProduct",
+  auth.checkAuth,
+  auth.checkRole(["seller"]),
+  sellerController.addProduct
+);
+
+// Seller dashboard route (requires login and seller role)
+sellerRouter.get(
+  "/Dashboard",
+  auth.checkAuth,
+  auth.checkRole(["seller"]),
+  sellerController.Dashboard
+);
+// Update product route (requires login and seller role)
+sellerRouter.put(
+  "/updateProduct",
+  auth.checkAuth,
+  auth.checkRole(["seller"]),
+  sellerController.updateProduct
+);
+
+module.exports = sellerRouter;
