@@ -1,3 +1,4 @@
+<<<<<<< HEAD
  ## E-Commerce Website
 Develop a comprehensive e-commerce website with functionalities for buyers and sellers. The site should include user authentication, product listings, shopping cart management, order processing, and payment gateway integration.
 
@@ -60,3 +61,10 @@ NOTE: Any violation of Terms and conditions is strictly prohibited. You are boun
 
  # project--BE
 # project--BE
+=======
+ auth controll
+ ## register user
+ ## login user
+ ## profile 
+ ## logout 
+>>>>>>> 71f26be6a30d3801a6ecf61c23799d14e6c12c5b
