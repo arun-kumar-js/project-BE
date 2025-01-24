@@ -30,7 +30,6 @@ const sellerController = {
 
   // Get seller dashboard (list products by seller ID)
   Dashboard: async (req, res) => {
-   
     try {
       const userId = req.userId; // Get the user ID from the middleware (auth)
       const products = await Product.find({ seller: userId });
@@ -46,11 +45,10 @@ const sellerController = {
 
   // Update product by ID
   updateProduct: async (req, res) => {
-    
     try {
       const { name, description, price, image } = req.body;
       const userId = req.userId; // Get the user ID from the middleware (auth)
-     
+
       const product = await Product.findOne({ name });
 
       if (!product) {
@@ -69,6 +67,39 @@ const sellerController = {
     } catch (error) {
       res.status(500).json({
         message: "Failed to update product",
+        error: error.message,
+      });
+    }
+  },
+  search: async (req, res) => {
+    try {
+      // Extract query parameters
+      const { name, minPrice, maxPrice, category } = req.query;
+
+      // Create a dynamic filter object
+      const filter = {};
+
+      // Add conditions to the filter dynamically
+      if (name) {
+        filter.name = { $regex: name, $options: "i" }; // Case-insensitive search
+      }
+      if (minPrice) {
+        filter.price = { ...filter.price, $gte: parseFloat(minPrice) }; // Minimum price
+      }
+      if (maxPrice) {
+        filter.price = { ...filter.price, $lte: parseFloat(maxPrice) }; // Maximum price
+      }
+      if (category) {
+        filter.category = category; // Exact match for category
+      }
+
+      // Query the database with the filter
+      const products = await Product.find(filter);
+
+      res.status(200).json({ products });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to fetch products",
         error: error.message,
       });
     }

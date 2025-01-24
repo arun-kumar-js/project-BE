@@ -14,7 +14,7 @@ sellerRouter.post(
 
 // Seller dashboard route (requires login and seller role)
 sellerRouter.get(
-  "/Dashboard",
+  "/dashboard",
   auth.checkAuth,
   auth.checkRole(["seller"]),
   sellerController.Dashboard
@@ -26,5 +26,10 @@ sellerRouter.put(
   auth.checkRole(["seller"]),
   sellerController.updateProduct
 );
-
+// search option route (requires login)
+sellerRouter.get(
+  "/search",
+  auth.checkAuth,
+  sellerController.search
+);
 module.exports = sellerRouter;

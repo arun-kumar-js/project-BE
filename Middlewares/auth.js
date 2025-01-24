@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { SECRET_KEY } = require("../utils/config");
 const User = require("../models/User"); // Import your User model
+
 const express = require("express");
 
 const app = express(); // Not strictly needed here if it's only middleware
