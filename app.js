@@ -3,6 +3,7 @@ const express = require("express");
 const authRouter = require("./routes/authRoutes");
 const cookieParser = require("cookie-parser");
 const sellerRouter = require("./routes/sellerRoutes");
+const cors = require("cors");
 
 // Create an Express app
 const app = express();
@@ -11,9 +12,16 @@ const app = express();
 app.use(cookieParser());
 app.use(express.json());
 
+app.use(cors({
+    origin: "http://localhost:5174",
+    credentials: true
+}));
+
 // Routes
 app.use("/auth", authRouter);
-app.use("/seller", sellerRouter);
+app.use("/auth/seller", sellerRouter);
 
 // Export the Express app
 module.exports = app;
+
+
