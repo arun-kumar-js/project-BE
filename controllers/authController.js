@@ -3,6 +3,8 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Product = require("../models/seller"); // Assuming you have a Product model
 const nodemailer = require("nodemailer");
+const cart = require("../models/cart");
+const auth = require("../Middlewares/auth");
 const {
   SECRET_KEY,
   GMAIL_PASSWORD,
@@ -85,18 +87,34 @@ const authcontroller = {
       response.status(500).json({ message: error.message });
     }
   },
+  // geting all the products
+  getProducts: async (req, res) => {
+    try {
+      const { page = 1, limit = 10 } = req.query;
 
+      const products = await Product.find()
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit));
+
+      const totalProducts = await Product.countDocuments();
+
+      res.status(200).json({
+        products,
+        totalPages: Math.ceil(totalProducts / limit),
+        currentPage: page,
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
 
   // Reset password
   resetPassword: async (request, response) => {
-    console.log(request.body);
     try {
-      const { email }  = request.body;
-      console.log (email);
-      
+      const { email } = request.body;
+
       const user = await User.findOne({ email });
-      console.log("Found user:", user);
-      
+
       if (!user) {
         return response
           .status(404)
@@ -137,31 +155,102 @@ const authcontroller = {
       response.status(500).json({ message: error.message });
     }
   },
-
-  // Update password
   updatePassword: async (request, response) => {
     try {
-      const { token, password } = request.body;
+      const { code, password } = request.body;
 
+      // Query the user
       const user = await User.findOne({
-        resetPassword: token,
-        resetPasswordExpires: { $gt: Date.now() },
+        resetPassword: code, // Ensure token matches
+        resetPasswordExpires: { $gt: Date.now() }, // Ensure token is not expired
       });
 
       if (!user) {
         return response
           .status(404)
-          .json({ message: "Invalid or expired token" });
+          .json({ message: "Invalid or expired reset code" });
       }
 
-      user.password = await bcrypt.hash(password, 10);
+      // Update the user's password
+      const hashPassword = await bcrypt.hash(password, 10);
+      user.password = hashPassword;
       user.resetPassword = null;
       user.resetPasswordExpires = null;
       await user.save();
 
-      response.status(200).json({ message: "Password updated successfully" });
+      response
+        .status(200)
+        .json({ message: "Password has been successfully reset" });
     } catch (error) {
-      response.status(500).json({ message: error.message });
+      console.error("Error during password reset:", error.message);
+      response.status(500).json({ message: "Internal server error" });
+    }
+  },
+  ProductById: async (req, res) => {
+    try {
+      const product = await Product.findById(req.params.id);
+      if (product) {
+        res.json(product);
+      } else {
+        res.status(404).json({ error: "Product not found" });
+      }
+    } catch (err) {
+      res.status(500).json({ error: "Error fetching product details" });
+    }
+  },
+
+  
+
+addToCart: async (req, res) => {
+  try {
+    console.log(req.body);
+    console.log(req.cookies.token);
+const decodedToken = jwt.verify(req.cookies.token, process.env.SECRET_KEY);
+    req.user = { id: decodedToken.id };
+    
+    const { productId } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ message: "Product ID is required" });
+    }
+
+    // Check ii have f the product exists
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    const userCart = await cart.findOneAndUpdate(
+      { userId: req.user.id },
+      { $addToSet: { products: productId } },
+      { new: true, upsert: true }
+    );
+
+    return res.status(200).json({ message: "Product added to cart", cart: userCart });
+  } catch (error) {
+    console.error("Error adding to cart:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+  },
+  getCart: async (req, res) => {
+    try {
+      const decodedToken = jwt.verify(req.cookies.token, process.env.SECRET_KEY);
+      req.user = { id: decodedToken.id };
+
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const userCart = await cart.findOne({ userId: req.user.id }).populate("products");
+
+      return res.status(200).json({ cart: userCart });
+    } catch (error) {
+      console.error("Error fetching cart:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   },
 };
