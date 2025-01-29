@@ -1,28 +1,19 @@
+// routes/authRoutes.js
 const express = require("express");
-const authcontroller = require("../controllers/authController");
 const auth = require("../Middlewares/auth");
 const authRouter = express.Router();
+const authController = require("../controllers/authController"); // Make sure it's authController
 
-authRouter.post('/register', authcontroller.register);//register route
-authRouter.post('/login', authcontroller.login);//login route
-authRouter.post('/logout', authcontroller.logout);// logout route
-authRouter.get("/me", auth.checkAuth, authcontroller.me);// profie view
-authRouter.post("/reset", authcontroller.resetPassword);// reset password
-authRouter.post("/update",  authcontroller.updatePassword);// update password
-authRouter.get("/getproduct", authcontroller.getProducts);// all products.... public route
-authRouter.get("/product/:id", authcontroller.ProductById);// get product by id
-authRouter.post("/addcart", auth.checkAuth, authcontroller.addToCart);// add to cart
-authRouter.get("/getcart", auth.checkAuth, authcontroller.getCart);// get cart
+authRouter.post("/register", authController.register); // Change to authController
+authRouter.post("/login", authController.login); // Change to authController
+authRouter.post("/logout", authController.logout); // Change to authController
+authRouter.get("/me", auth.checkAuth, authController.me); // Change to authController
+authRouter.post("/reset", authController.resetPassword); // Change to authController
+authRouter.post("/update", authController.updatePassword); // Change to authController
+authRouter.get("/getproduct", authController.getProducts); // Change to authController
+authRouter.get("/product/:id", authController.ProductById); // Change to authController
+authRouter.post("/addcart", auth.checkAuth, authController.addToCart); // Change to authController
+authRouter.get("/getcart", auth.checkAuth, authController.getCart); // Change to authController
+authRouter.delete("/removecart", auth.checkAuth, authController.removeFromCart); // Change to authController
 
-
-
-
-
-
-
-
-
-
-
-
-module.exports = authRouter; //exporting the authRouter
+module.exports = authRouter; // Export authRouter

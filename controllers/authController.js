@@ -33,7 +33,6 @@ const authcontroller = {
       response.status(500).json({ message: error.message });
     }
   },
-
   // Login user
   login: async (request, response) => {
     try {
@@ -71,7 +70,6 @@ const authcontroller = {
       response.status(500).json({ message: error.message });
     }
   },
-
   // Get user profile
   me: async (request, response) => {
     try {
@@ -108,84 +106,89 @@ const authcontroller = {
     }
   },
 
-  // Reset password
-  resetPassword: async (request, response) => {
-    try {
-      const { email } = request.body;
-
-      const user = await User.findOne({ email });
-
-      if (!user) {
-        return response
-          .status(404)
-          .json({ message: "No account found with this email" });
-      }
-
-      const crypto = require("crypto");
-      const token = crypto.randomBytes(20).toString("hex");
-
-      user.resetPassword = token;
-      user.resetPasswordExpires = Date.now() + 3600000; // Token valid for 1 hour
-      await user.save();
-
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.GMAIL_USER,
-          pass: process.env.GMAIL_PASSWORD,
-        },
-      });
-
-      const message = {
-        from: process.env.GMAIL_USER,
-        to: user.email,
-        subject: "Password Reset",
-        text: `Reset your password using the following token: ${token}`,
-      };
-
-      transporter.sendMail(message, (err) => {
-        if (err) {
+  /// Reset password
+    resetPassword: async (request, response) => {
+      try {
+        const { email } = request.body;
+  
+        const user = await User.findOne({ email });
+  
+        if (!user) {
           return response
-            .status(500)
-            .json({ message: "Failed to send reset email", error: err });
+            .status(404)
+            .json({ message: "No account found with this email" });
         }
-        response.status(200).json({ message: "Password reset email sent" });
-      });
-    } catch (error) {
-      response.status(500).json({ message: error.message });
-    }
-  },
-  updatePassword: async (request, response) => {
-    try {
-      const { code, password } = request.body;
-
-      // Query the user
-      const user = await User.findOne({
-        resetPassword: code, // Ensure token matches
-        resetPasswordExpires: { $gt: Date.now() }, // Ensure token is not expired
-      });
-
-      if (!user) {
-        return response
-          .status(404)
-          .json({ message: "Invalid or expired reset code" });
+  
+        const crypto = require("crypto");
+        const token = crypto.randomBytes(20).toString("hex");
+  
+        user.resetPassword = token;
+        user.resetPasswordExpires = Date.now() + 3600000; // Token valid for 1 hour
+        await user.save();
+  
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: process.env.GMAIL_USER,
+            pass: process.env.GMAIL_PASSWORD,
+          },
+        });
+  
+        const message = {
+          from: process.env.GMAIL_USER,
+          to: user.email,
+          subject: "Password Reset",
+          text: `Reset your password using the following token: ${token}`,
+        };
+  
+        transporter.sendMail(message, (err) => {
+          if (err) {
+            return response
+              .status(500)
+              .json({ message: "Failed to send reset email", error: err });
+          }
+          response.status(200).json({ message: "Password reset email sent" });
+        });
+      } catch (error) {
+        response.status(500).json({ message: error.message });
       }
-
-      // Update the user's password
-      const hashPassword = await bcrypt.hash(password, 10);
-      user.password = hashPassword;
-      user.resetPassword = null;
-      user.resetPasswordExpires = null;
-      await user.save();
-
-      response
-        .status(200)
-        .json({ message: "Password has been successfully reset" });
-    } catch (error) {
-      console.error("Error during password reset:", error.message);
-      response.status(500).json({ message: "Internal server error" });
-    }
   },
+    
+  // Update password
+    updatePassword: async (request, response) => {
+        try {
+          const { code, password } = request.body;
+    
+          // Query the user
+          const user = await User.findOne({
+            resetPassword: code, // Ensure token matches
+            resetPasswordExpires: { $gt: Date.now() }, // Ensure token is not expired
+          });
+    
+          if (!user) {
+            return response
+              .status(404)
+              .json({ message: "Invalid or expired reset code" });
+          }
+    
+          // Update the user's password
+          const hashPassword = await bcrypt.hash(password, 10);
+          user.password = hashPassword;
+          user.resetPassword = null;
+          user.resetPasswordExpires = null;
+          await user.save();
+    
+          response
+            .status(200)
+            .json({ message: "Password has been successfully reset" });
+        } catch (error) {
+          console.error("Error during password reset:", error.message);
+          response.status(500).json({ message: "Internal server error" });
+        }
+      },
+    
+    
+    //get product by id 
   ProductById: async (req, res) => {
     try {
       const product = await Product.findById(req.params.id);
@@ -199,57 +202,95 @@ const authcontroller = {
     }
   },
 
-  
+  addToCart: async (req, res) => {
+    try {
+      const decodedToken = jwt.verify(
+        req.cookies.token,
+        process.env.SECRET_KEY
+      );
+      req.user = { id: decodedToken.id };
 
-addToCart: async (req, res) => {
-  try {
-    console.log(req.body);
-    console.log(req.cookies.token);
-const decodedToken = jwt.verify(req.cookies.token, process.env.SECRET_KEY);
-    req.user = { id: decodedToken.id };
-    
-    const { productId } = req.body;
+      const { productId } = req.body;
 
-    if (!productId) {
-      return res.status(400).json({ message: "Product ID is required" });
+      if (!productId) {
+        return res.status(400).json({ message: "Product ID is required" });
+      }
+
+      // Check ii have f the product exists
+      const product = await Product.findById(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const userCart = await cart.findOneAndUpdate(
+        { userId: req.user.id },
+        { $addToSet: { products: productId } },
+        { new: true, upsert: true }
+      );
+
+      return res
+        .status(200)
+        .json({ message: "Product added to cart", cart: userCart });
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
     }
-
-    // Check ii have f the product exists
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: "User not authenticated" });
-    }
-
-    const userCart = await cart.findOneAndUpdate(
-      { userId: req.user.id },
-      { $addToSet: { products: productId } },
-      { new: true, upsert: true }
-    );
-
-    return res.status(200).json({ message: "Product added to cart", cart: userCart });
-  } catch (error) {
-    console.error("Error adding to cart:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
   },
   getCart: async (req, res) => {
     try {
-      const decodedToken = jwt.verify(req.cookies.token, process.env.SECRET_KEY);
+      const decodedToken = jwt.verify(
+        req.cookies.token,
+        process.env.SECRET_KEY
+      );
       req.user = { id: decodedToken.id };
 
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      const userCart = await cart.findOne({ userId: req.user.id }).populate("products");
+      const userCart = await cart
+        .findOne({ userId: req.user.id })
+        .populate("products");
 
       return res.status(200).json({ cart: userCart });
     } catch (error) {
       console.error("Error fetching cart:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+  removeFromCart: async (req, res) => {
+    try {
+      const decodedToken = jwt.verify(
+        req.cookies.token,
+        process.env.SECRET_KEY
+      );
+      req.user = { id: decodedToken.id };
+
+      const { productId } = req.body;
+
+      if (!productId) {
+        return res.status(400).json({ message: "Product ID is required" });
+      }
+
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const userCart = await cart.findOneAndUpdate(
+        { userId: req.user.id },
+        { $pull: { products: productId } },
+        { new: true }
+      );
+
+      return res
+        .status(200)
+        .json({ message: "Product removed from cart", cart: userCart });
+    } catch (error) {
+      console.error("Error removing from cart:", error);
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
