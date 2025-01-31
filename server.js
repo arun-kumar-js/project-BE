@@ -1,35 +1,55 @@
-const app = require("./app");
+const express = require("express");
 const mongoose = require("mongoose");
-const { MONGODB_URI, PORT } = require("./utils/config");
+const Razorpay = require("razorpay");
+const cors = require("cors");
+require("dotenv").config();
+const { MONGODB_URI, PORT = 3000 } = require("./utils/config");
+const app = require("./app");
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+
+app.use(express.json());
+app.use(cors());
+
+// Create Razorpay order
+app.post("/create-razorpay-order", async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const options = {
+      amount: amount * 100, // Convert to paise
+      currency: "INR",
+      receipt: `order_rcpt_${Math.floor(Math.random() * 1000000)}`,
+    };
+    const order = await razorpay.orders.create(options);
+    res.json({ orderId: order.id });
+  } catch (error) {
+    console.error("Error creating Razorpay order:", error);
+    res.status(500).json({ error: "Razorpay order creation failed" });
+  }
+});
 
 (async () => {
   try {
-    // Connect to the MongoDB database
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true, // Ensures the latest connection string parser is used
-      useUnifiedTopology: true, // Enables the new server discovery and monitoring engine
-    });
+    await mongoose.connect(MONGODB_URI);
     console.log("Connected to the MongoDB database");
-
-    // Start the server
     app.listen(PORT, () => {
       console.log(`Server running at http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error("Failed to connect to the database:", error.message);
-
-    // Graceful exit on database connection failure
     process.exit(1);
   }
 
-  // Handle unhandled promise rejections
-  process.on("unhandledRejection", (reason, promise) => {
+  process.on("unhandledRejection", (reason) => {
     console.error("Unhandled Promise Rejection:", reason);
   });
 
-  // Handle uncaught exceptions
   process.on("uncaughtException", (error) => {
     console.error("Uncaught Exception:", error);
-    process.exit(1); // Exit the process on critical error
+    process.exit(1);
   });
 })();
