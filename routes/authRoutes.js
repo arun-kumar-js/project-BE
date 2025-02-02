@@ -21,9 +21,7 @@ authRouter.delete("/clearcart", auth.checkAuth, authController.clearCart); // cl
 authRouter.get("/getallorders", auth.checkAuth, authController.getAllOrders); // get all orders here
 authRouter.post("/createrazorpayorder", authController.razorpayOrder); // create razorpay order here
 authRouter.post("/createorder", auth.checkAuth, authController.createorder); // verify payment here
-authRouter.post(
-  "/verify-payment",
-  auth.checkAuth,
-  authController.verifyPayment
-);
+authRouter.post("/verify-payment", auth.checkAuth, authController.verifyPayment);
+authRouter.post("/review"), auth.checkAuth, authController.addReview; // review here
+
 module.exports = authRouter; // Export authRouter

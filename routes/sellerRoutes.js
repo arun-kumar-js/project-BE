@@ -20,16 +20,20 @@ sellerRouter.get(
   sellerController.Dashboard
 );
 // Update product route (requires login and seller role)
-sellerRouter.put(
+sellerRouter.post(
   "/updateProduct",
   auth.checkAuth,
   auth.checkRole(["seller"]),
   sellerController.updateProduct
 );
-// search option route (requires login)
-sellerRouter.get(
-  "/search",
+// Delete product route (requires login and seller role)
+sellerRouter.delete(
+  "/deleteProduct",
   auth.checkAuth,
-  sellerController.search
+  auth.checkRole(["seller"]),
+  sellerController.deleteProduct
 );
+// search option route (requires login)
+sellerRouter.get("/search", auth.checkAuth, sellerController.search);
 module.exports = sellerRouter;
+// update git

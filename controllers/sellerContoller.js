@@ -118,6 +118,63 @@ const sellerController = {
       });
     }
   },
+
+  // Delete product by ID
+  deleteProduct: async (req, res) => {
+    try {
+      const userId = req.userId; // Get the user ID from the middleware (auth)
+      const { productId } = req.body;
+
+      if (!productId) {
+        return res.status(400).json({ message: "Product ID is required" });
+      }
+
+      const product = await Product.findOneAndDelete({
+        _id: productId,
+        seller: userId,
+      });
+
+      if (!product) {
+        return res
+          .status(404)
+          .json({ message: "Product not found or not authorized" });
+      }
+
+      res.status(200).json({ message: "Product deleted successfully" });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to delete product",
+        error: error.message,
+      });
+    }
+  },
+  updateProduct: async (req, res) => {
+    try {
+      const { name, description, price, image } = req.body;
+      const userId = req.userId; // Get the user ID from the middleware (auth)
+console.log(userId)
+      const product = await Product.findOne({ name, seller: userId });
+
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      product.name = name;
+      product.description = description;
+      product.price = price;
+      product.image = image;
+
+      await product.save();
+      res.status(200).json({
+        message: "Product updated successfully",
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to update product",
+        error: error.message,
+      });
+    }
+  },
 };
 
 module.exports = sellerController;

@@ -9,7 +9,8 @@ const Order = require("../models/Order");
 const Razorpay = require("razorpay");
 const CreateOrder = require("../models/createorder"); // Adjust path if needed
 const crypto = require("crypto");
-
+const review = require("../models/review");
+const auth = require("../Middlewares/auth");
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -66,7 +67,11 @@ const authcontroller = {
       });
 
       // Send token to HTTP cookies
-      response.cookie("token", token, { httpOnly: true });
+      response.cookie("token", token, {
+        httpOnly: true,
+        sameSite: "Strict",
+        secure: false,
+      });
       response.status(200).json({ message: "User logged in successfully" });
     } catch (error) {
       response.status(500).json({ message: error.message });
@@ -306,46 +311,6 @@ const authcontroller = {
     }
   },
 
-  addToCart: async (req, res) => {
-    try {
-      const decodedToken = jwt.verify(
-        req.cookies.token,
-        process.env.SECRET_KEY
-      );
-      req.user = { id: decodedToken.id };
-
-      const { productId } = req.body;
-
-      if (!productId) {
-        return res.status(400).json({ message: "Product ID is required" });
-      }
-
-      // Check ii have f the product exists
-      const product = await Product.findById(productId);
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
-
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
-      const userCart = await cart.findOneAndUpdate(
-        { userId: req.user.id },
-        { $addToSet: { products: productId } },
-        { new: true, upsert: true }
-      );
-
-      return res
-        .status(200)
-        .json({ message: "Product added to cart", cart: userCart });
-    } catch (error) {
-      console.error("Error adding to cart:", error);
-      return res.status(500).json({ message: "Internal Server Error" });
-    }
-  },
-  // Place an order
-
   order: async (req, res) => {
     try {
       const { userId, cartItems, totalPrice } = req.body;
@@ -396,6 +361,7 @@ const authcontroller = {
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
+
   clearCart: async (req, res) => {
     try {
       const decodedToken = jwt.verify(
@@ -452,7 +418,7 @@ const authcontroller = {
         process.env.SECRET_KEY
       );
       req.user = { id: decodedToken.id };
-     
+
       // Check if the user is authenticated
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "User not authenticated" });
@@ -478,7 +444,7 @@ const authcontroller = {
   razorpayOrder: async (req, res) => {
     try {
       const { amount } = req.body;
-     // console.log("Received amount:", amount); // Log the amount
+      // console.log("Received amount:", amount); // Log the amount
       const options = {
         amount: amount * 100, // Convert to paise
         currency: "INR",
@@ -486,7 +452,7 @@ const authcontroller = {
       };
 
       const order = await razorpay.orders.create(options);
-     // console.log("Razorpay order created:", order); // Log the order response
+      // console.log("Razorpay order created:", order); // Log the order response
       res.json({ orderId: order.id });
     } catch (error) {
       console.error("Error creating Razorpay order:", error);
@@ -512,11 +478,9 @@ const authcontroller = {
         typeof amount !== "number" ||
         typeof totalPrice !== "number"
       ) {
-        return res
-          .status(400)
-          .json({
-            error: "Invalid data types for user ID, amount, or total price",
-          });
+        return res.status(400).json({
+          error: "Invalid data types for user ID, amount, or total price",
+        });
       }
 
       // Create Razorpay order
@@ -548,28 +512,71 @@ const authcontroller = {
     }
   },
   verifyPayment: async (req, res) => {
+    console.log("Cookies received:", req.cookies);
     try {
+      const decodedToken = jwt.verify(
+        req.cookies.token,
+        process.env.SECRET_KEY
+      );
+      req.user = { id: decodedToken.id };
+      console.log(req.user);
 
-          // 2. Razorpay signature verification
-      const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
-
+      // 2. Razorpay signature verification
+      const { razorpay_payment_id, razorpay_order_id, razorpay_signature } =
+        req.body;
+      console.log(razorpay_payment_id, razorpay_order_id, razorpay_signature);
       const generatedSignature = crypto
-        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-        .digest('hex');
+        .digest("hex");
 
       if (generatedSignature === razorpay_signature) {
         // Payment is successful
-        res.status(200).json({ message: 'Payment verified successfully' });
+        res.status(200).json({ message: "Payment verified successfully" });
       } else {
-        res.status(400).json({ message: 'Invalid payment signature' });
+        res.status(400).json({ message: "Invalid payment signature" });
       }
     } catch (error) {
-      console.error('Error verifying payment:', error);
-      res.status(500).json({ message: 'Internal Server Error' });
+      console.error("Error verifying payment:", error);
+      res.status(500).json({ message: "Internal Server Error" });
     }
-  }
-}
+  },
+  addReview: async (req, res) => {
+    try {
+      const decodedToken = jwt.verify(
+        req.cookies.token,
+        process.env.SECRET_KEY
+      );
+      console.log(decodedToken);
+      req.user = { id: decodedToken.id };
+      console.log(req.user);
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { productId, rating, review } = req.body;
+      if (!productId || !rating || !review) {
+        return res
+          .status(400)
+          .json({ message: "Product ID, rating, and review are required" });
+      }
+
+      const product = await Product.findById(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      const newReview = { userId: req.user.id, rating, review };
+      product.reviews.push(newReview);
+      await product.save();
+
+      return res.status(200).json({ message: "Review added successfully" });
+    } catch (error) {
+      console.error("Error adding review:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
+    }
+  },
+};
 
 
 
