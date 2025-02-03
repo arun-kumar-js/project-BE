@@ -5,12 +5,12 @@ const Product = require("../models/seller"); // Assuming you have a Product mode
 const nodemailer = require("nodemailer");
 const cart = require("../models/cart");
 const Auth = require("../Middlewares/auth");
-const Order = require("../models/Order");
 const Razorpay = require("razorpay");
 const CreateOrder = require("../models/createorder"); // Adjust path if needed
 const crypto = require("crypto");
 const review = require("../models/review");
 const auth = require("../Middlewares/auth");
+
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -310,58 +310,6 @@ const authcontroller = {
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
-
-  order: async (req, res) => {
-    try {
-      const { userId, cartItems, totalPrice } = req.body;
-
-      if (!userId || !cartItems || cartItems.length === 0 || !totalPrice) {
-        return res
-          .status(400)
-          .json({ error: "Invalid request: Missing fields" });
-      }
-
-      const userExists = await User.findById(userId);
-      if (!userExists) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const products = [];
-      for (const item of cartItems) {
-        const productExists = await Product.findById(item.productId);
-        if (!productExists) {
-          return res
-            .status(404)
-            .json({ error: `Product not found: ${item.name}` });
-        }
-        // Push product details into products array
-        products.push({
-          productId: item.productId,
-          name: productExists.name,
-          price: productExists.price,
-          quantity: item.quantity,
-        });
-      }
-
-      const newOrder = new Order({
-        userId,
-        cartItems,
-        totalPrice,
-        status: "Pending",
-        products, // Add products array to order
-      });
-
-      await newOrder.save();
-
-      return res
-        .status(200)
-        .json({ message: "Order placed successfully", order: newOrder });
-    } catch (error) {
-      console.error("Unexpected error placing order:", error);
-      return res.status(500).json({ message: "Internal Server Error" });
-    }
-  },
-
   clearCart: async (req, res) => {
     try {
       const decodedToken = jwt.verify(
@@ -444,73 +392,67 @@ const authcontroller = {
   razorpayOrder: async (req, res) => {
     try {
       const { amount } = req.body;
-      // console.log("Received amount:", amount); // Log the amount
+
+      // Validate the amount
+      if (isNaN(amount) || amount <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      console.log("Received amount:", amount); // Log the amount
+
       const options = {
         amount: amount * 100, // Convert to paise
         currency: "INR",
-        receipt: `order_rcpt_${Math.floor(Math.random() * 1000000)}`,
+        receipt: `order_rcpt_${Date.now()}_${Math.floor(
+          Math.random() * 1000000
+        )}`, // Unique receipt with timestamp
       };
 
       const order = await razorpay.orders.create(options);
-      // console.log("Razorpay order created:", order); // Log the order response
       res.json({ orderId: order.id });
     } catch (error) {
       console.error("Error creating Razorpay order:", error);
-      res
-        .status(500)
-        .json({ error: error.message || "Razorpay order creation failed" });
+      res.status(500).json({
+        error: error.message || "Razorpay order creation failed",
+        details: error.stack, // Add stack trace for better debugging
+      });
     }
   },
-  createorder: async (req, res) => {
-    try {
-      const { userId, amount, totalPrice } = req.body;
+  createOrder : async (req, res) => {
+  const { userId, name, address, phoneNumber, products, totalPrice, paymentId } = req.body;
+   console.log(
+     userId,
+     name,
+     address,
+     phoneNumber,
+     products,
+     totalPrice,
+     paymentId
+   );
+  if (!userId || !totalPrice ) {
+    return res.status(400).json({
+      error: 'User ID, total price, and payment ID are required',
+    });
+  }
 
-      // Validate required fields
-      if (!userId || !amount || !totalPrice) {
-        return res
-          .status(400)
-          .json({ error: "User ID, amount, and total price are required" });
-      }
+  try {
+    const newOrder = new CreateOrder({
+      userId,
+      name,
+      address,
+      phoneNumber,
+      products,
+      totalPrice,
+      paymentId,
+    });
 
-      // Validate data types
-      if (
-        typeof userId !== "string" ||
-        typeof amount !== "number" ||
-        typeof totalPrice !== "number"
-      ) {
-        return res.status(400).json({
-          error: "Invalid data types for user ID, amount, or total price",
-        });
-      }
-
-      // Create Razorpay order
-      const razorpayOrder = await razorpay.orders.create({
-        amount: amount * 100, // Razorpay expects amount in paise
-        currency: "INR",
-        receipt: `order_rcpt_${Date.now()}`,
-        payment_capture: 1, // Auto capture payment
-      });
-
-      // Save order in MongoDB
-      const newOrder = new CreateOrder({
-        userId,
-        amount,
-        currency: "INR",
-        razorpayOrderId: razorpayOrder.id,
-        totalPrice,
-        status: "created",
-      });
-
-      // Save the order
-      await newOrder.save();
-
-      // Respond with the order data
-      res.status(201).json(newOrder);
-    } catch (error) {
-      console.error("Error creating order:", error);
-      res.status(500).json({ error: "Failed to create order" });
-    }
-  },
+    await newOrder.save();
+    res.status(201).json({ success: true, message: 'Order created successfully', order: newOrder });
+  } catch (error) {
+    console.error("Error creating order:", error);
+    res.status(400).json({ success: false, message: 'Failed to store order' });
+  }
+},
   verifyPayment: async (req, res) => {
     console.log("Cookies received:", req.cookies);
     try {

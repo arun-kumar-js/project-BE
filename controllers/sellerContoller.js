@@ -1,7 +1,7 @@
 const Product = require("../models/seller");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" }); // Uploads folder
-
+const PlacedOrder=require("../models/sellerOrederView");
 const sellerController = {
   // Add a product
   addProduct: async (req, res) => {
@@ -152,7 +152,7 @@ const sellerController = {
     try {
       const { name, description, price, image } = req.body;
       const userId = req.userId; // Get the user ID from the middleware (auth)
-console.log(userId)
+      console.log(userId);
       const product = await Product.findOne({ name, seller: userId });
 
       if (!product) {
@@ -171,6 +171,18 @@ console.log(userId)
     } catch (error) {
       res.status(500).json({
         message: "Failed to update product",
+        error: error.message,
+      });
+    }
+  },
+
+  placedOrders: (req, res) => {
+    try {
+      const orders = JSON.parse(localStorage.getItem("placedOrders")) || [];
+      res.status(200).json({ orders });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to fetch placed orders",
         error: error.message,
       });
     }

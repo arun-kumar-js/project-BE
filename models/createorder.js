@@ -6,9 +6,9 @@ const createorderSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
-  amount: { type: Number, required: true },
+  totalPrice: { type: Number, required: true },
   currency: { type: String, default: "INR" },
-  razorpayOrderId: { type: String, required: true },
+  razorpayOrderId: { type: String, required: false },
   totalPrice: { type: Number, required: true },
   status: {
     type: String,
