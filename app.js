@@ -19,12 +19,17 @@ app.use(
   })
 );
 
-
 // Routes
 app.use("/auth", authRouter);
 app.use("/auth/seller", sellerRouter);
+app.use(
+  cors({
+    origin: "http://localhost:5174",
+    credentials: true,
+  })
+);
+
+
 
 // Export the Express app
 module.exports = app;
-
-

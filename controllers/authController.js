@@ -8,8 +8,10 @@ const Auth = require("../Middlewares/auth");
 const Razorpay = require("razorpay");
 const CreateOrder = require("../models/createorder"); // Adjust path if needed
 const crypto = require("crypto");
-const review = require("../models/review");
+const Review = require("../models/review");
 const auth = require("../Middlewares/auth");
+const createorders = require("../models/createorder");
+const orders = require("../models/createorder");
 
 
 const razorpay = new Razorpay({
@@ -67,11 +69,12 @@ const authcontroller = {
       });
 
       // Send token to HTTP cookies
-      response.cookie("token", token, {
+      response.cookie("token", token, "userID", user._id, {
         httpOnly: true,
         sameSite: "Strict",
         secure: false,
       });
+
       response.status(200).json({ message: "User logged in successfully" });
     } catch (error) {
       response.status(500).json({ message: error.message });
@@ -331,59 +334,23 @@ const authcontroller = {
     }
   },
   // Get all orders
+
   getOrders: async (req, res) => {
     try {
-      const decodedToken = jwt.verify(
-        req.cookies.token,
-        process.env.SECRET_KEY
-      );
-      req.user = { id: decodedToken.id };
+      const userId = req.params.id;
+     
 
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "User not authenticated" });
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
       }
 
-      // ✅ Populate the products array with full product details
-      const userOrder = await Order.findOne({ userId: req.user.id }).populate(
-        "products"
-      ); // Ensure this is the correct reference in your schema
+      const orders = await createorders.find({ userId }).populate("products");
 
-      if (!userOrder) {
+      if (!orders || orders.length === 0) {
         return res.status(404).json({ message: "No orders found" });
       }
 
-      return res.status(200).json({ order: userOrder });
-    } catch (error) {
-      console.error("Error fetching order:", error);
-      return res.status(500).json({ message: "Internal Server Error" });
-    }
-  },
-  getAllOrders: async (req, res) => {
-    try {
-      // Decode the token to get the user ID
-      const decodedToken = jwt.verify(
-        req.cookies.token,
-        process.env.SECRET_KEY
-      );
-      req.user = { id: decodedToken.id };
-
-      // Check if the user is authenticated
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
-      // Fetch all orders for the user and populate the 'products' field
-      const getAllOrders = await Order.find({ userId: req.user.id }).populate(
-        "cartItems.productId"
-      );
-
-      // If no orders found for the user, return a 404 error
-      if (getAllOrders.length === 0) {
-        return res.status(404).json({ message: "No orders found" });
-      }
-
-      // Send the retrieved orders as a response
-      return res.status(200).json({ orders: getAllOrders });
+      return res.status(200).json({ orders });
     } catch (error) {
       console.error("Error fetching orders:", error);
       return res.status(500).json({ message: "Internal Server Error" });
@@ -398,7 +365,7 @@ const authcontroller = {
         return res.status(400).json({ error: "Invalid amount" });
       }
 
-      console.log("Received amount:", amount); // Log the amount
+     
 
       const options = {
         amount: amount * 100, // Convert to paise
@@ -418,25 +385,8 @@ const authcontroller = {
       });
     }
   },
-  createOrder : async (req, res) => {
-  const { userId, name, address, phoneNumber, products, totalPrice, paymentId } = req.body;
-   console.log(
-     userId,
-     name,
-     address,
-     phoneNumber,
-     products,
-     totalPrice,
-     paymentId
-   );
-  if (!userId || !totalPrice ) {
-    return res.status(400).json({
-      error: 'User ID, total price, and payment ID are required',
-    });
-  }
-
-  try {
-    const newOrder = new CreateOrder({
+  createOrder: async (req, res) => {
+    const {
       userId,
       name,
       address,
@@ -444,29 +394,102 @@ const authcontroller = {
       products,
       totalPrice,
       paymentId,
-    });
+    } = req.body;
+  
+    if (!userId || !totalPrice) {
+      return res.status(400).json({
+        error: "User ID, total price, and payment ID are required",
+      });
+    }
 
-    await newOrder.save();
-    res.status(201).json({ success: true, message: 'Order created successfully', order: newOrder });
+    try {
+      const newOrder = new CreateOrder({
+        userId,
+        name,
+        address,
+        phoneNumber,
+        products,
+        totalPrice,
+        paymentId,
+      });
+
+      await newOrder.save();
+
+      res.status(201).json({
+        success: true,
+        message: "Order created successfully",
+        order: newOrder,
+        
+      });
+      if (res.status(201)) {
+        // Add any additional logic here if needed
+        const sellerEmail = "mobiledoctorsdm@gmail.com";
+
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: process.env.GMAIL_USER,
+            pass: process.env.GMAIL_PASSWORD,
+          },
+        });
+
+        const mailOptions = {
+          from: process.env.GMAIL_USER,
+          to: sellerEmail,
+          subject: "New Order Received",
+          text: `You have received a new order from ${name}. Order details: ${JSON.stringify(newOrder)}`,
+        };
+
+        transporter.sendMail(mailOptions, (err, info) => {
+          if (err) {
+            console.error("Error sending email to seller:", err);
+          } else {
+            console.log("Email sent to seller:", info.response);
+          }
+        });
+        
+      }
+    } catch (error) {
+      console.error("Error creating order:", error);
+      res
+        .status(400)
+        .json({ success: false, message: "Failed to store order" });
+    }
+  },
+ deleteOrder:async (req, res) => {
+  try {
+    const orderId = req.params.id;
+   // // console.log("Received request to delete order with ID:", orderId);
+
+    // Use the Order model to find and delete the order
+    const deletedOrder = await orders.findByIdAndDelete(orderId);
+
+    if (!deletedOrder) {
+      // console.log("Order not found in database.");
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // console.log("Order deleted successfully:", deletedOrder);
+    res.json({ message: "Order deleted successfully" });
   } catch (error) {
-    console.error("Error creating order:", error);
-    res.status(400).json({ success: false, message: 'Failed to store order' });
+    console.error("Error deleting order:", error);
+    res.status(500).json({ message: "Error deleting order" });
   }
 },
   verifyPayment: async (req, res) => {
-    console.log("Cookies received:", req.cookies);
+    // console.log("Cookies received:", req.cookies);
     try {
       const decodedToken = jwt.verify(
         req.cookies.token,
         process.env.SECRET_KEY
       );
       req.user = { id: decodedToken.id };
-      console.log(req.user);
+      // console.log(req.user);
 
       // 2. Razorpay signature verification
       const { razorpay_payment_id, razorpay_order_id, razorpay_signature } =
         req.body;
-      console.log(razorpay_payment_id, razorpay_order_id, razorpay_signature);
+      // console.log(razorpay_payment_id, razorpay_order_id, razorpay_signature);
       const generatedSignature = crypto
         .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -483,46 +506,45 @@ const authcontroller = {
       res.status(500).json({ message: "Internal Server Error" });
     }
   },
-  addReview: async (req, res) => {
+
+  addReview : async (req, res) => {
+  const { productId, review ,rating} = req.body;
+   // Assuming you have middleware that attaches the user to the request
+const decodedToken = jwt.verify(req.cookies.token, process.env.SECRET_KEY);
+const userId = decodedToken.id;
+console.log(req.body);
+  try {
+    const newReview = new Review({
+      productId,
+      userId,
+      review,
+      rating,
+    });
+
+    await newReview.save();
+    res.status(201).json({ message: "Review submitted successfully!" });
+  } catch (error) {
+    console.error("Error saving review:", error);
+    res.status(500).json({ message: "Failed to submit review. Please try again." });
+  }
+  },
+  getReview: async (req, res) => {
     try {
-      const decodedToken = jwt.verify(
-        req.cookies.token,
-        process.env.SECRET_KEY
-      );
-      console.log(decodedToken);
-      req.user = { id: decodedToken.id };
-      console.log(req.user);
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
+    const productId = req.params.id;
+    console.log("Fetching reviews for product:", productId);
 
-      const { productId, rating, review } = req.body;
-      if (!productId || !rating || !review) {
-        return res
-          .status(400)
-          .json({ message: "Product ID, rating, and review are required" });
-      }
+    const reviews = await Review.find({ productId }).populate("userId", "name"); // Populate user name only
+    
+    res.json(reviews);
+  } catch (error) {
+    console.error("Error fetching reviews:", error);
+    res.status(500).json({ message: "Failed to fetch reviews" });
+  }
 
-      const product = await Product.findById(productId);
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
-
-      const newReview = { userId: req.user.id, rating, review };
-      product.reviews.push(newReview);
-      await product.save();
-
-      return res.status(200).json({ message: "Review added successfully" });
-    } catch (error) {
-      console.error("Error adding review:", error);
-      return res.status(500).json({ message: "Internal Server Error" });
-    }
   },
 };
 
 
 
 
-
-
-module.exports = authcontroller;  // Export authController
+module.exports = authcontroller; 

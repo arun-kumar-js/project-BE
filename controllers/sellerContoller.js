@@ -176,17 +176,27 @@ const sellerController = {
     }
   },
 
-  placedOrders: (req, res) => {
-    try {
-      const orders = JSON.parse(localStorage.getItem("placedOrders")) || [];
-      res.status(200).json({ orders });
-    } catch (error) {
-      res.status(500).json({
-        message: "Failed to fetch placed orders",
-        error: error.message,
-      });
-    }
-  },
-};
+  placedOrders: async (req, res) => {
+  try {
+    const sellerId = req.params.sellerId;
 
+    // Find products belonging to the seller
+    const sellerProducts = await Product.find({ sellerId });
+
+    // Extract product IDs
+    const productIds = sellerProducts.map((product) => product._id);
+
+    // Find orders that contain any of the seller's products
+    const orders = await orders.find({
+      "products.productId": { $in: productIds },
+    });
+
+    res.status(200).json({ success: true, orders });
+  } catch (error) {
+    console.error("Error fetching seller orders:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+  },
+ 
+};
 module.exports = sellerController;

@@ -12,6 +12,13 @@ const razorpay = new Razorpay({
 });
 
 
+app.use(
+  cors({
+    origin: "http://localhost:5174", // Specify the allowed origin
+    credentials: true, // Allow credentials (cookies, etc.)
+  })
+);
+
 app.use(express.json());
 app.use(cors());
 
@@ -20,7 +27,7 @@ app.post("/create-razorpay-order", async (req, res) => {
   try {
     const { amount } = req.body;
     const options = {
-      amount: amount * 100, // Convert to paise
+      amount: amount * 1, // Convert to paise
       currency: "INR",
       receipt: `order_rcpt_${Math.floor(Math.random() * 1000000)}`,
     };

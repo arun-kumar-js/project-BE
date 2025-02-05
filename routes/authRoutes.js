@@ -11,16 +11,18 @@ authRouter.get("/me", auth.checkAuth, authController.me); // get user here
 authRouter.post("/reset", authController.resetPassword); // reset password here
 authRouter.post("/update", authController.updatePassword); // update password here
 authRouter.get("/getproduct", authController.getProducts); //get products here
-authRouter.get("/product/:id", authController.ProductById); //  product by id here
+authRouter.get("/product/:id", authController.ProductById); //  product by id here..................
 authRouter.post("/addcart", auth.checkAuth, authController.addToCart); // add to cart here
 authRouter.get("/getcart", auth.checkAuth, authController.getCart); // get cart deatils here
 authRouter.delete("/removecart", auth.checkAuth, authController.removeFromCart); // product remove from cart here
 authRouter.get("/getorder/:id", auth.checkAuth, authController.getOrders); //order by id here
 authRouter.delete("/clearcart", auth.checkAuth, authController.clearCart); // clear cart here
-authRouter.get("/getallorders", auth.checkAuth, authController.getAllOrders); // get all orders here
+//authRouter.get("/getallorders", auth.checkAuth, authController.getAllOrders); // get all orders here
 authRouter.post("/createrazorpayorder", authController.razorpayOrder); // create razorpay order here
 authRouter.post("/createorder", auth.checkAuth, authController.createOrder); // verify payment here/ i thing i wanted to create order
 authRouter.post("/verify-payment", auth.checkAuth, authController.verifyPayment);
-authRouter.post("/review"), auth.checkAuth, authController.addReview; // review here
+authRouter.delete("/order/:id", authController.deleteOrder); 
+authRouter.post("/product/review", auth.checkAuth, authController.addReview);
+authRouter.get("/product/reviews/:id", authController.getReview);
 
 module.exports = authRouter; // Export authRouter

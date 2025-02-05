@@ -36,10 +36,11 @@ sellerRouter.delete(
 // search option route (requires login)
 sellerRouter.get("/search", auth.checkAuth, sellerController.search);
 sellerRouter.get(
-  "/placedOrders",
+  "/seller/deliverylist",
   auth.checkAuth,
   auth.checkRole(["seller"]),
- sellerController.placedOrders
+  sellerController.placedOrders
 );
+
 module.exports = sellerRouter;
 // update git
