@@ -50,35 +50,43 @@ const authcontroller = {
   },
   // Login user
   login: async (request, response) => {
-    try {
-      const { email, password } = request.body;
+   try {
+     const { email, password } = request.body;
 
-      const user = await User.findOne({ email });
-      if (!user) {
-        return response.status(400).json({ message: "User does not exist" });
-      }
+     // Check if user exists
+     const user = await User.findOne({ email });
+     if (!user) {
+       return response.status(400).json({ message: "User does not exist" });
+     }
 
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return response.status(400).json({ message: "Invalid password" });
-      }
+     // Validate password
+     const isMatch = await bcrypt.compare(password, user.password);
+     if (!isMatch) {
+       return response.status(400).json({ message: "Invalid password" });
+     }
 
-      // Create a token
-      const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {
-        expiresIn: "1h",
-      });
+     // Create a token
+     const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {
+       expiresIn: "1h",
+     });
 
-      // Send token to HTTP cookies
-      response.cookie("token", token, "userID", user._id, {
-        httpOnly: true,
-        sameSite: "Strict",
-        secure: false,
-      });
+     // Set token in HTTP cookies
+     response.cookie("token", token, {
+       httpOnly: true,
+       sameSite: "Strict",
+       secure: process.env.NODE_ENV === "production", // Set secure in production
+       maxAge: 60 * 60 * 1000, // 1 hour
+     });
 
-      response.status(200).json({ message: "User logged in successfully" });
-    } catch (error) {
-      response.status(500).json({ message: error.message });
-    }
+     // Send token and user ID in response
+     response.status(200).json({
+       message: "User logged in successfully",
+       token, // Send token in response (optional)
+       userID: user._id, // Send user ID separately
+     });
+   } catch (error) {
+     response.status(500).json({ message: error.message });
+   }
   },
 
   // Logout user
