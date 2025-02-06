@@ -7,38 +7,38 @@ const sellerRouter = express.Router();
 // Add product route (requires login and seller role)
 sellerRouter.post(
   "/addProduct",
-  auth.verifyLogin,
-  auth.allowRoles(["seller"]),
+  auth.checkAuth,
+  auth.checkRole(["seller"]),
   sellerController.addProduct
 );
 
 // Seller dashboard route (requires login and seller role)
 sellerRouter.get(
   "/dashboard",
-  auth.verifyLogin,
-  auth.allowRoles(["seller"]),
+  auth.checkAuth,
+  auth.checkRole(["seller"]),
   sellerController.Dashboard
 );
 // Update product route (requires login and seller role)
 sellerRouter.post(
   "/updateProduct",
-  auth.verifyLogin,
-  auth.allowRoles(["seller"]),
+  auth.checkAuth,
+  auth.checkRole(["seller"]),
   sellerController.updateProduct
 );
 // Delete product route (requires login and seller role)
 sellerRouter.delete(
   "/deleteProduct",
-  auth.verifyLogin,
-  auth.allowRoles(["seller"]),
+  auth.checkAuth,
+  auth.checkRole(["seller"]),
   sellerController.deleteProduct
 );
 // search option route (requires login)
-sellerRouter.get("/search", auth.verifyLogin, sellerController.search);
+sellerRouter.get("/search", auth.checkAuth, sellerController.search);
 sellerRouter.get(
   "/seller/deliverylist",
-  auth.verifyLogin,
-  auth.allowRoles(["seller"]),
+  auth.checkAuth,
+  auth.checkRole(["seller"]),
   sellerController.placedOrders
 );
 

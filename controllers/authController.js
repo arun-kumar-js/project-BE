@@ -4,12 +4,12 @@ const User = require("../models/User");
 const Product = require("../models/seller"); // Assuming you have a Product model
 const nodemailer = require("nodemailer");
 const cart = require("../models/cart");
-const Auth = require("../Middlewares/auth").default;
+const Auth = require("../Middlewares/auth");
 const Razorpay = require("razorpay");
 const CreateOrder = require("../models/createorder"); // Adjust path if needed
 const crypto = require("crypto");
 const Review = require("../models/review");
-const auth = require("../Middlewares/auth").default;
+const auth = require("../Middlewares/auth");
 const createorders = require("../models/createorder");
 const orders = require("../models/createorder");
 
@@ -27,41 +27,36 @@ const {
 } = require("../utils/config");
 const mongoose = require("mongoose");
 
-const authController = {
+const authcontroller = {
   // Register a new user
-  register: async (req, res) => {
+  register: async (request, response) => {
     try {
-      // Example register logic
-      const { username, email, password } = req.body;
+      const { name, email, password } = request.body;
 
-      // Check if user already exists (example)
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
+      const user = await User.findOne({ email }); // Check if user exists
+      if (user) {
+        return response.status(400).json({ message: "User already exists" });
       }
 
-      // Create new user logic (example)
-      const newUser = new User({ username, email, password });
+      const hashedPassword = await bcrypt.hash(password, 10); // Encrypt password
+      const newUser = new User({ name, email, password: hashedPassword });
       await newUser.save();
 
-      res.status(201).json({ message: "User created successfully" });
+      response.status(201).json({ message: "User created successfully" });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      response.status(500).json({ message: error.message });
     }
   },
-
   // Login user
   login: async (request, response) => {
     try {
       const { email, password } = request.body;
 
-      // Check if user exists
       const user = await User.findOne({ email });
       if (!user) {
         return response.status(400).json({ message: "User does not exist" });
       }
 
-      // Validate password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return response.status(400).json({ message: "Invalid password" });
@@ -72,20 +67,14 @@ const authController = {
         expiresIn: "1h",
       });
 
-      // Set token in HTTP cookies
-      response.cookie("token", token, {
+      // Send token to HTTP cookies
+      response.cookie("token", token, "userID", user._id, {
         httpOnly: true,
         sameSite: "Strict",
-        secure: process.env.NODE_ENV === "production", // Set secure in production
-        maxAge: 60 * 60 * 1000, // 1 hour
+        secure: false,
       });
 
-      // Send token and user ID in response
-      response.status(200).json({
-        message: "User logged in successfully",
-        token, // Send token in response (optional)
-        userID: user._id, // Send user ID separately
-      });
+      response.status(200).json({ message: "User logged in successfully" });
     } catch (error) {
       response.status(500).json({ message: error.message });
     }
@@ -101,15 +90,18 @@ const authController = {
     }
   },
   // Get user profile
-  me: async (req, res) => {
+  me: async (request, response) => {
     try {
-      const userId = req.userId; // Ensure `userId` is set in middleware
-      const user = await User.findById(userId).select("-password -__v");
-      if (!user) return res.status(404).json({ message: "User not found" });
+      const userId = request.userId;
 
-      res.status(200).json({ user });
+      const user = await User.findById(userId).select("-password -__v");
+      if (!user) {
+        return response.status(404).json({ message: "User not found" });
+      }
+
+      response.status(200).json({ user });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      response.status(500).json({ message: error.message });
     }
   },
   // geting all the products
@@ -340,6 +332,7 @@ const authController = {
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
+  // Get all orders
 
   getOrders: async (req, res) => {
     try {
@@ -551,6 +544,4 @@ const authController = {
   },
 };
 
-
-module.exports = authController; 
-// Export the authController
+module.exports = authcontroller;

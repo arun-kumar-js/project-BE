@@ -1,56 +1,62 @@
 const jwt = require("jsonwebtoken");
 const { SECRET_KEY } = require("../utils/config");
-const User = require("../models/User");
+const User = require("../models/User"); // Import your User model
 
-const auth = {
-  // Middleware to check if the user is authenticated
-  verifyLogin: async (req, res, next) => {
-    try {
-      // Get the token from HTTP-only cookies
-      const token = req.cookies.token;
+const express = require("express");
 
-      // If the token does not exist, return an error message
-      if (!token) {
-        return res
-          .status(401)
-          .json({ message: "Access denied. No token provided." });
-      }
+const app = express(); // Not strictly needed here if it's only middleware
 
-      // Verify the token
-      const verified = jwt.verify(token, SECRET_KEY);
-      req.userId = verified.id; // Attach user ID to request object
-
-      next();
-    } catch (error) {
-      return res.status(401).json({ message: "Invalid or expired token" });
+// Middleware to check authentication
+const checkAuth = (req, res, next) => {
+  try {
+    // Get token from the header
+    const token = localStorage.getItem("token");
+    if (!token) {
+      return res
+        .status(401)
+        .json({ message: "No token, authorization denied" });
     }
-  },
 
-  // Middleware to authorize the user based on the role
-  allowRoles: (roles) => {
-    return async (req, res, next) => {
-      try {
-        // Get the user from the database
-        const user = await User.findById(req.userId);
+    // Verify and decode token
+    const decoded = jwt.verify(token, SECRET_KEY);
 
-        // If user does not exist
-        if (!user) {
-          return res.status(401).json({ message: "User not found" });
-        }
+    // Attach user data to the request object
+    req.userId = decoded.id;
 
-        // Check if the user's role is in the allowed roles array
-        if (!roles.includes(user.role)) {
-          return res
-            .status(403)
-            .json({ message: "Forbidden: You do not have access" });
-        }
-
-        next();
-      } catch (error) {
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    };
-  },
+    next();
+  } catch (err) {
+    res.status(401).json({ message: "Token is not valid", error: err.message });
+  }
 };
 
-module.exports = auth;
+// Middleware to check role-based access
+const checkRole = (roles) => async (req, res, next) => {
+  try {
+    // Ensure `req.userId` is already populated by `checkAuth`
+    if (!req.userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    // Fetch the user's role from the database
+    const user = await User.findById(req.userId); // Assumes `req.userId` corresponds to `_id` in the database
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    req.role = user.role; // Attach the role to the request object
+
+    // Check if the user's role is allowed
+    if (!roles.includes(req.role)) {
+      return res.status(403).json({ message: "User not allowed" });
+    }
+
+    next();
+  } catch (err) {
+    res.status(403).json({ message: "Access denied", error: err.message });
+  }
+};
+
+module.exports = {
+  checkAuth,
+  checkRole,
+};
