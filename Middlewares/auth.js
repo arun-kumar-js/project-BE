@@ -9,12 +9,12 @@ const app = express(); // Not strictly needed here if it's only middleware
 // Middleware to check authentication
 const checkAuth = (req, res, next) => {
   try {
-    // Get token from cookies
-    const token = req.cookies.token;
+    // Get token from local storage
+    const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
     if (!token) {
       return res
-        .status(401)
-        .json({ message: "No token, authorization denied" });
+      .status(401)
+      .json({ message: "No token, authorization denied" });
     }
 
     // Verify and decode token

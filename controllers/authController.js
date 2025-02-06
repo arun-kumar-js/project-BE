@@ -1,7 +1,7 @@
 const bcrypt = require("bcrypt"); // Password encryption and decryption
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const Product = require("../models/seller"); // Assuming you have a Product model
+const Product = require("../models/Products"); // Assuming you have a Product model
 const nodemailer = require("nodemailer");
 const cart = require("../models/cart");
 const Auth = require("../Middlewares/auth");
@@ -67,12 +67,8 @@ const authcontroller = {
         expiresIn: "1h",
       });
 
-      // Send token to HTTP cookies
-      response.cookie("token", token, "userID", user._id, {
-        httpOnly: true,
-        sameSite: "Strict",
-        secure: false,
-      });
+      
+     
 
       response.status(200).json({ message: "User logged in successfully" });
     } catch (error) {

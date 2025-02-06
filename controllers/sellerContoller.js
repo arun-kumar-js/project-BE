@@ -1,4 +1,4 @@
-const Product = require("../models/seller");
+const Product = require("../models/Products");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" }); // Uploads folder
 const PlacedOrder = require("../models/sellerOrederView");

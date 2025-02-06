@@ -10,11 +10,14 @@ const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
-
 app.use(
   cors({
-    origin: "https://starlit-cupcake-cc6d26.netlify.app", // Specify the allowed origin
+    origin: [
+      "https://starlit-cupcake-cc6d26.netlify.app",
+      "http://localhost:5174",
+    ], // Specify the allowed origin
     credentials: true, // Allow credentials (cookies, etc.)
+    
   })
 );
 
