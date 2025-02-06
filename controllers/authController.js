@@ -70,7 +70,7 @@ const authcontroller = {
       
      
 
-      response.status(200).json({ message: "User logged in successfully" });
+      response.status(200).json({ message: "User logged in successfully",token:token });
     } catch (error) {
       response.status(500).json({ message: error.message });
     }
