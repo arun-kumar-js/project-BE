@@ -14,7 +14,7 @@ app.use(express.json());
 
 app.use(
   cors({
-    origin: "http://localhost:5174", // Adjust based on your frontend URL for future deploy
+    origin: "https://project-be-qvrk.onrender.com", // Adjust based on your frontend URL for future deploy
     credentials: true,
   })
 );

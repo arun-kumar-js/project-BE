@@ -9,8 +9,8 @@ const app = express(); // Not strictly needed here if it's only middleware
 // Middleware to check authentication
 const checkAuth = (req, res, next) => {
   try {
-    // Get token from the header
-    const token = localStorage.getItem("token");
+    // Get token from cookies
+    const token = req.cookies.token;
     if (!token) {
       return res
         .status(401)
