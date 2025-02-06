@@ -14,7 +14,7 @@ app.use(express.json());
 
 app.use(
   cors({
-    origin: "https://starlit-cupcake-cc6d26.netlify.app/", // Adjust based on your frontend URL for future deploy
+    origin: "https://starlit-cupcake-cc6d26.netlify.app", // Adjust based on your frontend URL for future deploy
     credentials: true,
   })
 );
@@ -24,7 +24,7 @@ app.use("/auth", authRouter);
 app.use("/auth/seller", sellerRouter);
 app.use(
   cors({
-    origin: "http://localhost:5174",
+    origin: "https://starlit-cupcake-cc6d26.netlify.app",
     credentials: true,
   })
 );
