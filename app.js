@@ -14,7 +14,7 @@ app.use(express.json());
 
 app.use(
   cors({
-    origin: "https://project-be-qvrk.onrender.com", // Adjust based on your frontend URL for future deploy
+    origin: "https://starlit-cupcake-cc6d26.netlify.app/", // Adjust based on your frontend URL for future deploy
     credentials: true,
   })
 );
