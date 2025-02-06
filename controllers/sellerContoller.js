@@ -1,7 +1,7 @@
 const Product = require("../models/seller");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" }); // Uploads folder
-const PlacedOrder=require("../models/sellerOrederView");
+const PlacedOrder = require("../models/sellerOrederView");
 const sellerController = {
   // Add a product
   addProduct: async (req, res) => {
@@ -177,26 +177,25 @@ const sellerController = {
   },
 
   placedOrders: async (req, res) => {
-  try {
-    const sellerId = req.params.sellerId;
+    try {
+      const sellerId = req.params.sellerId;
 
-    // Find products belonging to the seller
-    const sellerProducts = await Product.find({ sellerId });
+      // Find products belonging to the seller
+      const sellerProducts = await Product.find({ sellerId });
 
-    // Extract product IDs
-    const productIds = sellerProducts.map((product) => product._id);
+      // Extract product IDs
+      const productIds = sellerProducts.map((product) => product._id);
 
-    // Find orders that contain any of the seller's products
-    const orders = await orders.find({
-      "products.productId": { $in: productIds },
-    });
+      // Find orders that contain any of the seller's products
+      const orders = await orders.find({
+        "products.productId": { $in: productIds },
+      });
 
-    res.status(200).json({ success: true, orders });
-  } catch (error) {
-    console.error("Error fetching seller orders:", error);
-    res.status(500).json({ success: false, message: "Server Error" });
-  }
+      res.status(200).json({ success: true, orders });
+    } catch (error) {
+      console.error("Error fetching seller orders:", error);
+      res.status(500).json({ success: false, message: "Server Error" });
+    }
   },
- 
 };
 module.exports = sellerController;

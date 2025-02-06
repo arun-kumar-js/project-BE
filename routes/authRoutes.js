@@ -1,28 +1,42 @@
-// routes/authRoutes.js
+
 const express = require("express");
-const auth = require("../Middlewares/auth");
 const authRouter = express.Router();
-const authController = require("../controllers/authController"); // Make sure it's authController
+const authController = require("../controllers/authController");
+const auth = require("../Middlewares/auth");
 
-authRouter.post("/register", authController.register); // rigester here
-authRouter.post("/login", authController.login); // login here
-authRouter.post("/logout", authController.logout); // logout here
-authRouter.get("/me", auth.checkAuth, authController.me); // get user here
-authRouter.post("/reset", authController.resetPassword); // reset password here
-authRouter.post("/update", authController.updatePassword); // update password here
-authRouter.get("/getproduct", authController.getProducts); //get products here
-authRouter.get("/product/:id", authController.ProductById); //  product by id here..................
-authRouter.post("/addcart", auth.checkAuth, authController.addToCart); // add to cart here
-authRouter.get("/getcart", auth.checkAuth, authController.getCart); // get cart deatils here
-authRouter.delete("/removecart", auth.checkAuth, authController.removeFromCart); // product remove from cart here
-authRouter.get("/getorder/:id", auth.checkAuth, authController.getOrders); //order by id here
-authRouter.delete("/clearcart", auth.checkAuth, authController.clearCart); // clear cart here
-//authRouter.get("/getallorders", auth.checkAuth, authController.getAllOrders); // get all orders here
-authRouter.post("/createrazorpayorder", authController.razorpayOrder); // create razorpay order here
-authRouter.post("/createorder", auth.checkAuth, authController.createOrder); // verify payment here/ i thing i wanted to create order
-authRouter.post("/verify-payment", auth.checkAuth, authController.verifyPayment);
-authRouter.delete("/order/:id", authController.deleteOrder); 
-authRouter.post("/product/review", auth.checkAuth, authController.addReview);
-authRouter.get("/product/reviews/:id", authController.getReview);
+authRouter.post("/register", authController.register); // Register a new user
+authRouter.post("/login", authController.login); // Log in
+authRouter.post("/logout", authController.logout); // Log out
+authRouter.get("/me", auth.verifyLogin, authController.me); //..........// Get user info
+authRouter.post("/reset", authController.resetPassword); // Reset password
+authRouter.post("/update", authController.updatePassword); // Update password
 
-module.exports = authRouter; // Export authRouter
+// Products
+authRouter.get("/products", authController.getProducts); // Get all products
+authRouter.get("/product/:id", authController.ProductById); // Get product by ID
+authRouter.get("/getproduct"), authController.getProducts; // Get product by ID
+
+// Cart
+authRouter.post("/addcart", auth.verifyLogin, authController.addToCart); // Add to cart
+authRouter.get("/getcart", auth.verifyLogin, authController.getCart); // Get cart details
+authRouter.delete("/removecart", auth.verifyLogin, authController.removeFromCart); // Remove item from cart
+authRouter.delete("/clearcart", auth.verifyLogin, authController.clearCart); // Clear all items from cart
+
+// Orders
+authRouter.get("/getorder/:id", auth.verifyLogin, authController.getOrders); // Get order by ID
+authRouter.post("/createorder", auth.verifyLogin, authController.createOrder); // Create a new order
+authRouter.delete("/order/:id", authController.deleteOrder); // Delete an order
+
+// Razorpay
+authRouter.post("/createrazorpayorder", authController.razorpayOrder); // Create Razorpay order
+authRouter.post(
+  "/verify-payment",
+  auth.verifyLogin,
+  authController.verifyPayment
+); // Verify Razorpay payment
+
+// Product Reviews
+authRouter.post("/product/review", auth.verifyLogin, authController.addReview); // Add review for a product
+authRouter.get("/product/reviews/:id", authController.getReview); // Get reviews for a product
+
+module.exports = authRouter; // Export the authRouter

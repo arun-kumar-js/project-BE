@@ -4,15 +4,14 @@ const User = require("../models/User");
 const Product = require("../models/seller"); // Assuming you have a Product model
 const nodemailer = require("nodemailer");
 const cart = require("../models/cart");
-const Auth = require("../Middlewares/auth");
+const Auth = require("../Middlewares/auth").default;
 const Razorpay = require("razorpay");
 const CreateOrder = require("../models/createorder"); // Adjust path if needed
 const crypto = require("crypto");
 const Review = require("../models/review");
-const auth = require("../Middlewares/auth");
+const auth = require("../Middlewares/auth").default;
 const createorders = require("../models/createorder");
 const orders = require("../models/createorder");
-
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -28,65 +27,68 @@ const {
 } = require("../utils/config");
 const mongoose = require("mongoose");
 
-const authcontroller = {
+const authController = {
   // Register a new user
-  register: async (request, response) => {
+  register: async (req, res) => {
     try {
-      const { name, email, password } = request.body;
+      // Example register logic
+      const { username, email, password } = req.body;
 
-      const user = await User.findOne({ email }); // Check if user exists
-      if (user) {
-        return response.status(400).json({ message: "User already exists" });
+      // Check if user already exists (example)
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists" });
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10); // Encrypt password
-      const newUser = new User({ name, email, password: hashedPassword });
+      // Create new user logic (example)
+      const newUser = new User({ username, email, password });
       await newUser.save();
 
-      response.status(201).json({ message: "User created successfully" });
+      res.status(201).json({ message: "User created successfully" });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Login user
+  login: async (request, response) => {
+    try {
+      const { email, password } = request.body;
+
+      // Check if user exists
+      const user = await User.findOne({ email });
+      if (!user) {
+        return response.status(400).json({ message: "User does not exist" });
+      }
+
+      // Validate password
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return response.status(400).json({ message: "Invalid password" });
+      }
+
+      // Create a token
+      const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {
+        expiresIn: "1h",
+      });
+
+      // Set token in HTTP cookies
+      response.cookie("token", token, {
+        httpOnly: true,
+        sameSite: "Strict",
+        secure: process.env.NODE_ENV === "production", // Set secure in production
+        maxAge: 60 * 60 * 1000, // 1 hour
+      });
+
+      // Send token and user ID in response
+      response.status(200).json({
+        message: "User logged in successfully",
+        token, // Send token in response (optional)
+        userID: user._id, // Send user ID separately
+      });
     } catch (error) {
       response.status(500).json({ message: error.message });
     }
-  },
-  // Login user
-  login: async (request, response) => {
-   try {
-     const { email, password } = request.body;
-
-     // Check if user exists
-     const user = await User.findOne({ email });
-     if (!user) {
-       return response.status(400).json({ message: "User does not exist" });
-     }
-
-     // Validate password
-     const isMatch = await bcrypt.compare(password, user.password);
-     if (!isMatch) {
-       return response.status(400).json({ message: "Invalid password" });
-     }
-
-     // Create a token
-     const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {
-       expiresIn: "1h",
-     });
-
-     // Set token in HTTP cookies
-     response.cookie("token", token, {
-       httpOnly: true,
-       sameSite: "Strict",
-       secure: process.env.NODE_ENV === "production", // Set secure in production
-       maxAge: 60 * 60 * 1000, // 1 hour
-     });
-
-     // Send token and user ID in response
-     response.status(200).json({
-       message: "User logged in successfully",
-       token, // Send token in response (optional)
-       userID: user._id, // Send user ID separately
-     });
-   } catch (error) {
-     response.status(500).json({ message: error.message });
-   }
   },
 
   // Logout user
@@ -99,18 +101,15 @@ const authcontroller = {
     }
   },
   // Get user profile
-  me: async (request, response) => {
+  me: async (req, res) => {
     try {
-      const userId = request.userId;
-
+      const userId = req.userId; // Ensure `userId` is set in middleware
       const user = await User.findById(userId).select("-password -__v");
-      if (!user) {
-        return response.status(404).json({ message: "User not found" });
-      }
+      if (!user) return res.status(404).json({ message: "User not found" });
 
-      response.status(200).json({ user });
+      res.status(200).json({ user });
     } catch (error) {
-      response.status(500).json({ message: error.message });
+      res.status(500).json({ message: error.message });
     }
   },
   // geting all the products
@@ -341,12 +340,10 @@ const authcontroller = {
       return res.status(500).json({ message: "Internal Server Error" });
     }
   },
-  // Get all orders
 
   getOrders: async (req, res) => {
     try {
       const userId = req.params.id;
-     
 
       if (!userId) {
         return res.status(400).json({ message: "User ID is required" });
@@ -372,8 +369,6 @@ const authcontroller = {
       if (isNaN(amount) || amount <= 0) {
         return res.status(400).json({ error: "Invalid amount" });
       }
-
-     
 
       const options = {
         amount: amount * 100, // Convert to paise
@@ -403,7 +398,7 @@ const authcontroller = {
       totalPrice,
       paymentId,
     } = req.body;
-  
+
     if (!userId || !totalPrice) {
       return res.status(400).json({
         error: "User ID, total price, and payment ID are required",
@@ -427,7 +422,6 @@ const authcontroller = {
         success: true,
         message: "Order created successfully",
         order: newOrder,
-        
       });
       if (res.status(201)) {
         // Add any additional logic here if needed
@@ -445,7 +439,9 @@ const authcontroller = {
           from: process.env.GMAIL_USER,
           to: sellerEmail,
           subject: "New Order Received",
-          text: `You have received a new order from ${name}. Order details: ${JSON.stringify(newOrder)}`,
+          text: `You have received a new order from ${name}. Order details: ${JSON.stringify(
+            newOrder
+          )}`,
         };
 
         transporter.sendMail(mailOptions, (err, info) => {
@@ -455,7 +451,6 @@ const authcontroller = {
             console.log("Email sent to seller:", info.response);
           }
         });
-        
       }
     } catch (error) {
       console.error("Error creating order:", error);
@@ -464,26 +459,26 @@ const authcontroller = {
         .json({ success: false, message: "Failed to store order" });
     }
   },
- deleteOrder:async (req, res) => {
-  try {
-    const orderId = req.params.id;
-   // // console.log("Received request to delete order with ID:", orderId);
+  deleteOrder: async (req, res) => {
+    try {
+      const orderId = req.params.id;
+      // // console.log("Received request to delete order with ID:", orderId);
 
-    // Use the Order model to find and delete the order
-    const deletedOrder = await orders.findByIdAndDelete(orderId);
+      // Use the Order model to find and delete the order
+      const deletedOrder = await orders.findByIdAndDelete(orderId);
 
-    if (!deletedOrder) {
-      // console.log("Order not found in database.");
-      return res.status(404).json({ message: "Order not found" });
+      if (!deletedOrder) {
+        // console.log("Order not found in database.");
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // console.log("Order deleted successfully:", deletedOrder);
+      res.json({ message: "Order deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      res.status(500).json({ message: "Error deleting order" });
     }
-
-    // console.log("Order deleted successfully:", deletedOrder);
-    res.json({ message: "Order deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting order:", error);
-    res.status(500).json({ message: "Error deleting order" });
-  }
-},
+  },
   verifyPayment: async (req, res) => {
     // console.log("Cookies received:", req.cookies);
     try {
@@ -515,44 +510,47 @@ const authcontroller = {
     }
   },
 
-  addReview : async (req, res) => {
-  const { productId, review ,rating} = req.body;
-   // Assuming you have middleware that attaches the user to the request
-const decodedToken = jwt.verify(req.cookies.token, process.env.SECRET_KEY);
-const userId = decodedToken.id;
-console.log(req.body);
-  try {
-    const newReview = new Review({
-      productId,
-      userId,
-      review,
-      rating,
-    });
+  addReview: async (req, res) => {
+    const { productId, review, rating } = req.body;
+    // Assuming you have middleware that attaches the user to the request
+    const decodedToken = jwt.verify(req.cookies.token, process.env.SECRET_KEY);
+    const userId = decodedToken.id;
+    console.log(req.body);
+    try {
+      const newReview = new Review({
+        productId,
+        userId,
+        review,
+        rating,
+      });
 
-    await newReview.save();
-    res.status(201).json({ message: "Review submitted successfully!" });
-  } catch (error) {
-    console.error("Error saving review:", error);
-    res.status(500).json({ message: "Failed to submit review. Please try again." });
-  }
+      await newReview.save();
+      res.status(201).json({ message: "Review submitted successfully!" });
+    } catch (error) {
+      console.error("Error saving review:", error);
+      res
+        .status(500)
+        .json({ message: "Failed to submit review. Please try again." });
+    }
   },
   getReview: async (req, res) => {
     try {
-    const productId = req.params.id;
-    console.log("Fetching reviews for product:", productId);
+      const productId = req.params.id;
+      console.log("Fetching reviews for product:", productId);
 
-    const reviews = await Review.find({ productId }).populate("userId", "name"); // Populate user name only
-    
-    res.json(reviews);
-  } catch (error) {
-    console.error("Error fetching reviews:", error);
-    res.status(500).json({ message: "Failed to fetch reviews" });
-  }
+      const reviews = await Review.find({ productId }).populate(
+        "userId",
+        "name"
+      ); // Populate user name only
 
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      res.status(500).json({ message: "Failed to fetch reviews" });
+    }
   },
 };
 
 
-
-
-module.exports = authcontroller; 
+module.exports = authController; 
+// Export the authController
