@@ -16,7 +16,7 @@ app.use(
   cors({
     origin: [
       "https://starlit-cupcake-cc6d26.netlify.app",
-      "http://localhost:5174/",
+      "http://localhost:5174",
     ], // Adjust based on your frontend URL for future deploy
     credentials: true,
   })
@@ -29,7 +29,7 @@ app.use(
   cors({
     origin: [
       "https://starlit-cupcake-cc6d26.netlify.app",
-      "http://localhost:5174/",
+      "http://localhost:5174",
     ],
     credentials: true,
   })

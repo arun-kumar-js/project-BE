@@ -17,7 +17,6 @@ app.use(
       "http://localhost:5174",
     ], // Specify the allowed origin
     credentials: true, // Allow credentials (cookies, etc.)
-    
   })
 );
 

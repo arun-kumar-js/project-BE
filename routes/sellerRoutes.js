@@ -34,13 +34,7 @@ sellerRouter.delete(
   sellerController.deleteProduct
 );
 // search option route (requires login)
-sellerRouter.get("/search", auth.checkAuth, sellerController.search);
-sellerRouter.get(
-  "/seller/deliverylist",
-  auth.checkAuth,
-  auth.checkRole(["seller"]),
-  sellerController.placedOrders
-);
+
 
 module.exports = sellerRouter;
 // update git

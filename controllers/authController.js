@@ -67,10 +67,9 @@ const authcontroller = {
         expiresIn: "1h",
       });
 
-      
-     
-
-      response.status(200).json({ message: "User logged in successfully",token:token });
+      response
+        .status(200)
+        .json({ message: "User logged in successfully", token: token });
     } catch (error) {
       response.status(500).json({ message: error.message });
     }
@@ -87,8 +86,14 @@ const authcontroller = {
   },
   // Get user profile
   me: async (request, response) => {
+    //console.log(request.headers.authorization);
     try {
-      const userId = request.userId;
+      const decodedToken = jwt.verify(
+        request.headers.authorization.split(" ")[1],
+        process.env.SECRET_KEY
+      );
+      const userId = decodedToken.id;
+    //  console.log(userId);
 
       const user = await User.findById(userId).select("-password -__v");
       if (!user) {
@@ -218,11 +223,20 @@ const authcontroller = {
 
   addToCart: async (req, res) => {
     try {
-      const decodedToken = jwt.verify(
-        req.cookies.token,
-        process.env.SECRET_KEY
-      );
-      req.user = { id: decodedToken.id };
+      // Get token from cookies or Authorization header
+      let token =
+        req.cookies.token ||
+        (req.headers.authorization && req.headers.authorization.split(" ")[1]);
+
+      if (!token) {
+        return res
+          .status(401)
+          .json({ message: "No token, authorization denied" });
+      }
+
+      // Verify token
+      const decoded = jwt.verify(token, process.env.SECRET_KEY);
+      req.user = { id: decoded.id };
 
       const { productId } = req.body;
 
@@ -230,16 +244,13 @@ const authcontroller = {
         return res.status(400).json({ message: "Product ID is required" });
       }
 
-      // Check ii have f the product exists
+      // Check if the product exists
       const product = await Product.findById(productId);
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
 
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
+      // Find user's cart and update it
       const userCart = await cart.findOneAndUpdate(
         { userId: req.user.id },
         { $addToSet: { products: productId } },
@@ -256,11 +267,19 @@ const authcontroller = {
   },
   getCart: async (req, res) => {
     try {
-      const decodedToken = jwt.verify(
-        req.cookies.token,
-        process.env.SECRET_KEY
-      );
-      req.user = { id: decodedToken.id };
+      let token =
+        req.cookies.token ||
+        (req.headers.authorization && req.headers.authorization.split(" ")[1]);
+
+      if (!token) {
+        return res
+          .status(401)
+          .json({ message: "No token, authorization denied" });
+      }
+
+      // Verify token
+      const decoded = jwt.verify(token, process.env.SECRET_KEY);
+      req.user = { id: decoded.id };
 
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "User not authenticated" });
@@ -278,13 +297,19 @@ const authcontroller = {
   },
   removeFromCart: async (req, res) => {
     try {
-      const decodedToken = jwt.verify(
-        req.cookies.token,
-        process.env.SECRET_KEY
-      );
-      req.user = { id: decodedToken.id };
+      let token =
+        req.cookies.token ||
+        (req.headers.authorization && req.headers.authorization.split(" ")[1]);
 
-      const { productId } = req.body;
+      if (!token) {
+        return res
+          .status(401)
+          .json({ message: "No token, authorization denied" });
+      }
+
+      // Verify token
+      const decoded = jwt.verify(token, process.env.SECRET_KEY);
+      req.user = { id: decoded.id };
 
       if (!productId) {
         return res.status(400).json({ message: "Product ID is required" });
@@ -310,12 +335,19 @@ const authcontroller = {
   },
   clearCart: async (req, res) => {
     try {
-      const decodedToken = jwt.verify(
-        req.cookies.token,
-        process.env.SECRET_KEY
-      );
-      req.user = { id: decodedToken.id };
+      let token =
+        req.cookies.token ||
+        (req.headers.authorization && req.headers.authorization.split(" ")[1]);
 
+      if (!token) {
+        return res
+          .status(401)
+          .json({ message: "No token, authorization denied" });
+      }
+
+      // Verify token
+      const decoded = jwt.verify(token, process.env.SECRET_KEY);
+      req.user = { id: decoded.id };
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "User not authenticated" });
       }
@@ -329,16 +361,23 @@ const authcontroller = {
     }
   },
   // Get all orders
-
   getOrders: async (req, res) => {
     try {
-      const userId = req.params.id;
+      const token =
+        req.headers.authorization && req.headers.authorization.split(" ")[1];
 
-      if (!userId) {
-        return res.status(400).json({ message: "User ID is required" });
+      if (!token) {
+        return res
+          .status(401)
+          .json({ message: "No token, authorization denied" });
       }
 
-      const orders = await createorders.find({ userId }).populate("products");
+      const decoded = jwt.verify(token, process.env.SECRET_KEY);
+      req.user = { id: decoded.id };
+
+      const orders = await createorders
+        .find({ userId: req.user.id })
+        .populate("products");
 
       if (!orders || orders.length === 0) {
         return res.status(404).json({ message: "No orders found" });
@@ -377,6 +416,7 @@ const authcontroller = {
       });
     }
   },
+
   createOrder: async (req, res) => {
     const {
       userId,
@@ -437,7 +477,7 @@ const authcontroller = {
           if (err) {
             console.error("Error sending email to seller:", err);
           } else {
-            console.log("Email sent to seller:", info.response);
+           // console.log("Email sent to seller:", info.response);
           }
         });
       }
@@ -469,63 +509,61 @@ const authcontroller = {
     }
   },
   verifyPayment: async (req, res) => {
-    // console.log("Cookies received:", req.cookies);
     try {
-      const decodedToken = jwt.verify(
-        req.cookies.token,
-        process.env.SECRET_KEY
-      );
-      req.user = { id: decodedToken.id };
-      // console.log(req.user);
+      // Check if Authorization header contains token
+      const token =
+        req.headers.authorization && req.headers.authorization.split(" ")[1];
 
-      // 2. Razorpay signature verification
-      const { razorpay_payment_id, razorpay_order_id, razorpay_signature } =
-        req.body;
-      // console.log(razorpay_payment_id, razorpay_order_id, razorpay_signature);
-      const generatedSignature = crypto
-        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-        .digest("hex");
-
-      if (generatedSignature === razorpay_signature) {
-        // Payment is successful
-        res.status(200).json({ message: "Payment verified successfully" });
-      } else {
-        res.status(400).json({ message: "Invalid payment signature" });
+      if (!token) {
+        return res
+          .status(401)
+          .json({ message: "No token, authorization denied" });
       }
+
+      const decodedToken = jwt.verify(token, process.env.SECRET_KEY);
+      req.user = { id: decodedToken.id };
+      res.json({ message: "Payment verified successfully" });
+      //console.log("User verified:", req.user);
+
+      // Continue payment verification logic...
     } catch (error) {
       console.error("Error verifying payment:", error);
-      res.status(500).json({ message: "Internal Server Error" });
+      return res.status(500).json({ message: "Internal Server Error" });
     }
   },
+addReview: async (req, res) => {
+  const { productId, review, rating } = req.body;
 
-  addReview: async (req, res) => {
-    const { productId, review, rating } = req.body;
-    // Assuming you have middleware that attaches the user to the request
-    const decodedToken = jwt.verify(req.cookies.token, process.env.SECRET_KEY);
+  try {
+    // Decode token to get the user ID
+    const decodedToken = jwt.verify(
+      req.headers.authorization.split(" ")[1],  // Use 'req' here
+      process.env.SECRET_KEY
+    );
     const userId = decodedToken.id;
-    console.log(req.body);
-    try {
-      const newReview = new Review({
-        productId,
-        userId,
-        review,
-        rating,
-      });
 
-      await newReview.save();
-      res.status(201).json({ message: "Review submitted successfully!" });
-    } catch (error) {
-      console.error("Error saving review:", error);
-      res
-        .status(500)
-        .json({ message: "Failed to submit review. Please try again." });
-    }
-  },
+    //console.log(userId);
+    //console.log(req.body);
+
+    // Create and save the new review
+    const newReview = new Review({
+      productId,
+      userId,
+      review,
+      rating,
+    });
+
+    await newReview.save();
+    res.status(201).json({ message: "Review submitted successfully!" });
+  } catch (error) {
+    console.error("Error saving review:", error);
+    res.status(500).json({ message: "Failed to submit review. Please try again." });
+  }
+},
   getReview: async (req, res) => {
     try {
       const productId = req.params.id;
-      console.log("Fetching reviews for product:", productId);
+      //console.log("Fetching reviews for product:", productId);
 
       const reviews = await Review.find({ productId }).populate(
         "userId",

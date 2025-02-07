@@ -2,10 +2,13 @@ const Product = require("../models/Products");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" }); // Uploads folder
 const PlacedOrder = require("../models/sellerOrederView");
+const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
 const sellerController = {
   // Add a product
   addProduct: async (req, res) => {
     try {
+      
       const { name, description, price, image } = req.body;
       const userId = req.userId; // Get user ID from middleware
 
@@ -60,64 +63,43 @@ const sellerController = {
   // Update product by ID
   updateProduct: async (req, res) => {
     try {
-      const { name, description, price, image } = req.body;
-      const userId = req.userId; // Get the user ID from the middleware (auth)
+      const { productId, name, description, price, image ,user} = req.body;
 
-      const product = await Product.findOne({ name });
+      if (!productId) {
+        return res.status(400).json({ message: "Product ID is required" });
+      }
+
+      const product = await Product.findById(productId);
 
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
 
-      product.name = name;
-      product.description = description;
-      product.price = price;
-      product.image = image;
+      // Ensure that only the seller who owns the product can update it
+      if (product.seller.toString() !== req.userId) {
+        return res
+          .status(403)
+          .json({ message: "Unauthorized to update this product" });
+      }
+
+      // Update product fields
+      product.name = name || product.name;
+      product.description = description || product.description;
+      product.price = price || product.price;
+      product.image = image || product.image;
 
       await product.save();
-      res.status(200).json({
-        message: "Product updated successfully",
-      });
+
+      res
+        .status(200)
+        .json({ message: "Product updated successfully", product });
     } catch (error) {
-      res.status(500).json({
-        message: "Failed to update product",
-        error: error.message,
-      });
+      res
+        .status(500)
+        .json({ message: "Failed to update product", error: error.message });
     }
   },
-  search: async (req, res) => {
-    try {
-      // Extract query parameters
-      const { name, minPrice, maxPrice, category } = req.query;
-
-      // Create a dynamic filter object
-      const filter = {};
-
-      // Add conditions to the filter dynamically
-      if (name) {
-        filter.name = { $regex: name, $options: "i" }; // Case-insensitive search
-      }
-      if (minPrice) {
-        filter.price = { ...filter.price, $gte: parseFloat(minPrice) }; // Minimum price
-      }
-      if (maxPrice) {
-        filter.price = { ...filter.price, $lte: parseFloat(maxPrice) }; // Maximum price
-      }
-      if (category) {
-        filter.category = category; // Exact match for category
-      }
-
-      // Query the database with the filter
-      const products = await Product.find(filter);
-
-      res.status(200).json({ products });
-    } catch (error) {
-      res.status(500).json({
-        message: "Failed to fetch products",
-        error: error.message,
-      });
-    }
-  },
+  
 
   // Delete product by ID
   deleteProduct: async (req, res) => {
@@ -148,33 +130,57 @@ const sellerController = {
       });
     }
   },
-  updateProduct: async (req, res) => {
-    try {
-      const { name, description, price, image } = req.body;
-      const userId = req.userId; // Get the user ID from the middleware (auth)
-      console.log(userId);
-      const product = await Product.findOne({ name, seller: userId });
+  // Get orders placed by customers
+updateProduct: async (req, res) => {
+  try {
+    const { name, description, price, image, productId } = req.body;
 
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
-
-      product.name = name;
-      product.description = description;
-      product.price = price;
-      product.image = image;
-
-      await product.save();
-      res.status(200).json({
-        message: "Product updated successfully",
-      });
-    } catch (error) {
-      res.status(500).json({
-        message: "Failed to update product",
-        error: error.message,
-      });
+    // Validate productId
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ message: "Invalid product ID" });
     }
-  },
+
+    // Validate input data
+    if (!name || !description || !price || !image) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    if (isNaN(price)) {
+      return res.status(400).json({ message: "Price must be a number" });
+    }
+
+    // Check Authorization header
+    if (!req.headers.authorization || !req.headers.authorization.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Authorization header missing or invalid" });
+    }
+    const token = req.headers.authorization.split(" ")[1];
+
+    userId = jwt.verify(token, process.env.SECRET_KEY).id;
+
+    // Find the product by _id and seller (userId)
+    const product = await Product.findOne({ _id: productId, seller: userId });
+    if (!product) {
+      return res.status(404).json({ message: "Product not found or not authorized" });
+    }
+
+    // Update product details
+    product.name = name;
+    product.description = description;
+    product.price = price;
+    product.image = image;
+
+    // Save the updated product
+    await product.save();
+
+  
+
+    // Return success message
+    res.status(200).json({ message: "Product updated successfully" });
+  } catch (error) {
+    // Handle errors
+    console.error("Error updating product:", error);
+    res.status(500).json({ message: "Failed to update product", error: error.message });
+  }
+},
 
   placedOrders: async (req, res) => {
     try {
