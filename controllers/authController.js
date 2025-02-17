@@ -31,7 +31,8 @@ const authcontroller = {
   // Register a new user
   register: async (request, response) => {
     try {
-      const { name, email, password } = request.body;
+      const { name, email, password, role } = request.body;
+      console.log(request.body);
 
       const user = await User.findOne({ email }); // Check if user exists
       if (user) {
@@ -39,7 +40,7 @@ const authcontroller = {
       }
 
       const hashedPassword = await bcrypt.hash(password, 10); // Encrypt password
-      const newUser = new User({ name, email, password: hashedPassword });
+      const newUser = new User({ name, email, password: hashedPassword,role });
       await newUser.save();
 
       response.status(201).json({ message: "User created successfully" });
