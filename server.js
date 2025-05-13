@@ -18,7 +18,7 @@ const razorpay = new Razorpay({
 //     ], // Specify the allowed origin
 //     credentials: true, // Allow credentials (cookies, etc.)
 //   })
-);
+//);
 app.use(
   cors({
     origin: "*", // Allow all origins for dev testing
